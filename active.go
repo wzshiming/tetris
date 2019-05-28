@@ -4,6 +4,11 @@ import (
 	"github.com/wzshiming/ctc"
 )
 
+var (
+	wallStr   = ctc.Negative.String() + "  " + ctc.Reset.String()
+	bottomStr = ctc.Negative.String() + "                        " + ctc.Reset.String()
+)
+
 var Actives = []string{
 	ctc.BackgroundBright.String() + "  " + ctc.Reset.String(),
 	ctc.BackgroundRed.String() + "  " + ctc.Reset.String(),

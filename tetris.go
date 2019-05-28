@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/wzshiming/ctc"
 	"github.com/wzshiming/cursor"
 	"github.com/wzshiming/getch"
 )
@@ -42,21 +41,15 @@ func (t *Tetris) Show() string {
 	buf.WriteString(cursor.RawMoveUp(uint64(len(t.box) + 1)))
 
 	for j, row := range t.box {
-		buf.WriteString(ctc.Negative.String())
-		buf.WriteString("  ")
-		buf.WriteString(ctc.Reset.String())
+		buf.WriteString(wallStr)
 		for i := range row {
 			buf.WriteString(t.Get(int8(i), int8(j)))
 		}
-		buf.WriteString(ctc.Negative.String())
-		buf.WriteString("  ")
-		buf.WriteString(ctc.Reset.String())
-		buf.WriteString("\n\r")
+		buf.WriteString(wallStr)
+		buf.WriteString("\n")
 	}
-	buf.WriteString(ctc.Negative.String())
-	buf.WriteString("                        ")
-	buf.WriteString(ctc.Reset.String())
-	buf.WriteString("\n\r")
+	buf.WriteString(bottomStr)
+	buf.WriteString("\n")
 	return buf.String()
 }
 
