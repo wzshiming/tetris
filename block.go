@@ -2,12 +2,12 @@ package tetris
 
 type Block uint16
 
-func (b Block) On(x, y int8) int8 {
+func (b Block) On(x, y int) int {
 	if x > 3 || y > 3 || x < 0 || y < 0 {
 		return 0
 	}
 	off := 4*(3-y) + (3 - x)
-	if b&(1<<uint8(off)) != 0 {
+	if b&(1<<uint(off)) != 0 {
 		return 1
 	}
 	return 0
@@ -81,17 +81,12 @@ var BlocksPool = [...][]Block{
 	},
 
 	[]Block{
-		// 0 0 0 0
-		// 0 1 1 0
-		// 0 1 0 0
-		// 0 1 0 0
-		0x0644,
 
 		// 0 0 0 0
-		// 0 1 0 0
-		// 0 1 1 1
+		// 1 1 1 0
+		// 0 0 1 0
 		// 0 0 0 0
-		0x0470,
+		0x0e20,
 
 		// 0 0 1 0
 		// 0 0 1 0
@@ -100,10 +95,16 @@ var BlocksPool = [...][]Block{
 		0x2260,
 
 		// 0 0 0 0
-		// 1 1 1 0
-		// 0 0 1 0
+		// 0 1 0 0
+		// 0 1 1 1
 		// 0 0 0 0
-		0x0e20,
+		0x0470,
+
+		// 0 0 0 0
+		// 0 1 1 0
+		// 0 1 0 0
+		// 0 1 0 0
+		0x0644,
 	},
 
 	[]Block{

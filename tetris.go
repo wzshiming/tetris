@@ -1,63 +1,101 @@
 package tetris
 
 import (
-	"bytes"
-	"io"
+	"fmt"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/wzshiming/cursor"
 	"github.com/wzshiming/getch"
 )
 
 type Tetris struct {
+	offX, offY    int
+	start         time.Time
+	draw          *Draw
 	box           [20][10]string
-	x, y          int8
-	waitingRotate uint8
+	x, y          int
+	waitingRotate uint
 	waiting       []Block
 	waitingColor  string
-	currentRotate uint8
+	currentRotate uint
 	current       []Block
 	currentColor  string
 	emptyColor    string
 	rand          *rand.Rand
 	rank          uint64
-	over          uint8
+	over          uint
 }
 
 func NewTetris() *Tetris {
 	t := &Tetris{
-		rand: rand.New(rand.NewSource(time.Now().Unix())),
+		start: time.Now(),
+		draw:  NewDraw(os.Stdout),
+		rand:  rand.New(rand.NewSource(time.Now().Unix())),
 	}
 	t.init()
+	t.initBox()
 	t.next()
 	return t
 }
 
-func (t *Tetris) Show() string {
-	buf := bytes.NewBuffer(nil)
-	buf.WriteString(cursor.RawClear())
-	buf.WriteString(cursor.RawMoveUp(uint64(len(t.box) + 1)))
+func (t *Tetris) end() {
+	t.draw.Dot("GAME OVER", 2, t.offX, t.offY+21)
+}
 
-	for j, row := range t.box {
-		buf.WriteString(wallStr)
-		for i := range row {
-			buf.WriteString(t.Get(int8(i), int8(j)))
+func (t *Tetris) initBox() {
+	t.draw.Clear()
+	t.setRank(t.rank)
+	t.setTime()
+	t.offX = 2
+	t.offY = 3
+	helpX := 14
+	helpY := 16
+	t.draw.Dot("  H E L P", 2, helpX, helpY)
+	t.draw.Dot("Q:     Quit", 2, helpX, helpY+1)
+	t.draw.Dot("W:     Rotate", 2, helpX, helpY+2)
+	t.draw.Dot("A:     Left", 2, helpX, helpY+3)
+	t.draw.Dot("D:     Right", 2, helpX, helpY+4)
+	t.draw.Dot("S:     Down", 2, helpX, helpY+5)
+	t.draw.Dot("Space: Drop", 2, helpX, helpY+6)
+	t.draw.Box(wallStr, 2, t.offX+13, t.offY, 4, 4)
+	t.draw.Box(wallStr, 2, t.offX, t.offY, 10, 20)
+}
+
+func (t *Tetris) showBlock(block Block, point string, cw int, x, y int) {
+	for i := 0; i != 4; i++ {
+		for j := 0; j != 4; j++ {
+			if (y+j >= 0) && block.On(i, j) == 1 {
+				t.draw.Dot(point, cw, t.offX+x+i, t.offY+y+j)
+			}
 		}
-		buf.WriteString(wallStr)
-		buf.WriteString("\n")
 	}
-	buf.WriteString(bottomStr)
-	buf.WriteString("\n")
-	return buf.String()
+}
+
+func (t *Tetris) showRow(row [10]string, cw int, x, y int) {
+	for i, col := range row {
+		if col == "" {
+			t.draw.Dot(t.emptyColor, cw, t.offX+x+i, t.offY+y)
+		} else {
+			t.draw.Dot(col, cw, t.offX+x+i, t.offY+y)
+		}
+	}
+}
+
+func (t *Tetris) setRank(i uint64) {
+	t.rank = i
+	t.draw.Dot(fmt.Sprintf("Rank:  %d", i), 2, 14, 11)
+}
+
+func (t *Tetris) setTime() {
+	t.draw.Dot(fmt.Sprintf("Time:  %s", time.Now().Sub(t.start)/time.Second*time.Second), 2, 14, 12)
 }
 
 func (t *Tetris) init() {
 	t.emptyColor = "  "
 	t.waiting = BlocksPool[t.rand.Int()%len(BlocksPool)]
 	t.waitingColor = Actives[t.rand.Int()%len(Actives)]
-	t.waitingRotate = uint8(t.rand.Int() % len(t.waiting))
+	t.waitingRotate = uint(t.rand.Int() % len(t.waiting))
 }
 
 func (t *Tetris) next() {
@@ -67,12 +105,15 @@ func (t *Tetris) next() {
 	t.current = t.waiting
 	t.currentColor = t.waitingColor
 	t.currentRotate = t.waitingRotate
+
+	t.showBlock(t.waiting[t.waitingRotate], t.emptyColor, 2, int(t.offX+11), int(t.y+4))
 	t.waiting = BlocksPool[t.rand.Int()%len(BlocksPool)]
 	t.waitingColor = Actives[t.rand.Int()%len(Actives)]
-	t.waitingRotate = uint8(t.rand.Int() % len(t.waiting))
+	t.waitingRotate = uint(t.rand.Int() % len(t.waiting))
+	t.showBlock(t.waiting[t.waitingRotate], t.waitingColor, 2, int(t.offX+11), int(t.y+4))
 }
 
-func (t *Tetris) Get(x, y int8) string {
+func (t *Tetris) Get(x, y int) string {
 	if x > 10 || y > 20 || x < 0 || y < 0 {
 		return t.emptyColor
 	}
@@ -92,7 +133,7 @@ func (t *Tetris) Get(x, y int8) string {
 	return b
 }
 
-func (t *Tetris) Set(x, y int8, currentColor string) {
+func (t *Tetris) Set(x, y int, currentColor string) {
 	if x > 10 || y > 20 || x < 0 || y < 0 {
 		t.over = 1
 		return
@@ -100,7 +141,7 @@ func (t *Tetris) Set(x, y int8, currentColor string) {
 	t.box[y][x] = currentColor
 }
 
-func (t *Tetris) On(x, y int8) int8 {
+func (t *Tetris) On(x, y int) int {
 	if x >= 10 || y >= 20 || x < 0 {
 		return 1
 	}
@@ -113,9 +154,9 @@ func (t *Tetris) On(x, y int8) int8 {
 	return 0
 }
 
-func (t *Tetris) touch(block Block, x, y int8) int8 {
-	for i := int8(0); i != 4; i++ {
-		for j := int8(0); j != 4; j++ {
+func (t *Tetris) touch(block Block, x, y int) int {
+	for i := 0; i != 4; i++ {
+		for j := 0; j != 4; j++ {
 			if block.On(i, j) == 1 && t.On(x+i, y+j) == 1 {
 				return 1
 			}
@@ -124,7 +165,7 @@ func (t *Tetris) touch(block Block, x, y int8) int8 {
 	return 0
 }
 
-func (t *Tetris) eliminate(y int8) {
+func (t *Tetris) eliminate(y int) {
 	if y >= 20 || y < 0 {
 		return
 	}
@@ -135,16 +176,21 @@ func (t *Tetris) eliminate(y int8) {
 			break
 		}
 	}
+
 	if eli {
 		t.rank++
+		t.setRank(t.rank)
 		copy(t.box[1:y+1], t.box[:y])
 		t.box[0] = [10]string{}
+		for i := 0; i <= y; i++ {
+			t.showRow(t.box[i], 2, 0, i)
+		}
 	}
 }
 
-func (t *Tetris) merge(block Block, x, y int8) {
-	for j := int8(0); j != 4; j++ {
-		for i := int8(0); i != 4; i++ {
+func (t *Tetris) merge(block Block, x, y int) {
+	for j := 0; j != 4; j++ {
+		for i := 0; i != 4; i++ {
 			if block.On(i, j) == 1 {
 				t.Set(x+i, y+j, t.currentColor)
 			}
@@ -155,23 +201,29 @@ func (t *Tetris) merge(block Block, x, y int8) {
 
 func (t *Tetris) Rotate() {
 	currentRotate := t.currentRotate + 1
-	if currentRotate >= uint8(len(t.current)) {
+	if currentRotate >= uint(len(t.current)) {
 		currentRotate = 0
 	}
 	if t.touch(t.current[currentRotate], t.x, t.y) == 0 {
+		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.currentRotate = currentRotate
+		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
 	}
 }
 
 func (t *Tetris) Left() {
 	if t.touch(t.current[t.currentRotate], t.x-1, t.y) == 0 {
+		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.x--
+		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
 	}
 }
 
 func (t *Tetris) Right() {
 	if t.touch(t.current[t.currentRotate], t.x+1, t.y) == 0 {
+		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.x++
+		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
 	}
 }
 
@@ -188,7 +240,9 @@ func (t *Tetris) Down() {
 
 func (t *Tetris) down() int {
 	if t.touch(t.current[t.currentRotate], t.x, t.y+1) == 0 {
+		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.y++
+		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
 		return 1
 	}
 	t.merge(t.current[t.currentRotate], t.x, t.y)
@@ -196,7 +250,7 @@ func (t *Tetris) down() int {
 	return 0
 }
 
-func (t *Tetris) Run() {
+func (t *Tetris) Run() (err error) {
 
 	type Command uint
 
@@ -207,70 +261,73 @@ func (t *Tetris) Run() {
 		Left
 		Down
 		Drop
-		Exit
 	)
 
 	tick := time.NewTicker(time.Second)
 	cch := make(chan Command, 0)
 
 	go func() {
-		for {
-			b, _, err := getch.Getch()
-			if err != nil {
-				cch <- Exit
-			}
-			c := None
-
-			switch b {
-			case 'w', 'W':
-				c = Rotate
-			case 's', 'S':
-				c = Down
-			case 'a', 'A':
-				c = Left
-			case 'd', 'D':
-				c = Right
-			case ' ':
-				c = Drop
-			case 'q', 'Q':
-				c = Exit
-			default:
-				continue
-			}
-			select {
-			case cch <- c:
-			default:
-				return
-			}
-		}
-	}()
-
-	go func() {
 		for range tick.C {
+			if t.over == 1 {
+				break
+			}
 			cch <- Down
 		}
 	}()
 
-	for c := range cch {
+	go func() {
+		for c := range cch {
+			if t.over == 1 {
+				return
+			}
+			switch c {
+			case Rotate:
+				t.Rotate()
+			case Right:
+				t.Right()
+			case Left:
+				t.Left()
+			case Drop:
+				t.Drop()
+			case Down:
+				t.setTime()
+				t.Down()
+			}
+		}
+	}()
+
+loop:
+	for {
+		b, _, err0 := getch.Getch()
+		if err != nil {
+			err = err0
+			break
+		}
 		if t.over == 1 {
-			c = Exit
+			break
 		}
-		switch c {
-		case Rotate:
-			t.Rotate()
-		case Right:
-			t.Right()
-		case Left:
-			t.Left()
-		case Drop:
-			t.Drop()
-		case Down:
-			t.Down()
-		case Exit:
-			close(cch)
-			tick.Stop()
-			return
+		c := None
+
+		switch b {
+		case 'w', 'W':
+			c = Rotate
+		case 's', 'S':
+			c = Down
+		case 'a', 'A':
+			c = Left
+		case 'd', 'D':
+			c = Right
+		case ' ':
+			c = Drop
+		case 'q', 'Q':
+			break loop
+		default:
+			continue
 		}
-		io.WriteString(os.Stdout, t.Show())
+		cch <- c
 	}
+	tick.Stop()
+	t.end()
+	close(cch)
+	return err
 }
