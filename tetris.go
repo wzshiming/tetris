@@ -102,7 +102,9 @@ func (t *Tetris) next() {
 	t.currentRotate = 0
 
 	t.showBlock(t.waiting.Blocks[0], t.emptyColor, 2, int(t.offX+11), int(t.y+4))
+	t.predict(false)
 	t.waiting = BlocksPool[t.rand.Int()%len(BlocksPool)]
+	t.predict(true)
 	t.showBlock(t.waiting.Blocks[0], t.waiting.Color, 2, int(t.offX+11), int(t.y+4))
 }
 
@@ -158,37 +160,43 @@ func (t *Tetris) touch(block Block, x, y int) int {
 	return 0
 }
 
-func (t *Tetris) eliminate(y int) {
+func (t *Tetris) eliminate(y int) bool {
 	if y >= 20 || y < 0 {
-		return
+		return false
 	}
-	eli := true
+
 	for _, d := range t.box[y] {
 		if d == "" {
-			eli = false
-			break
+			return false
 		}
 	}
 
-	if eli {
-		t.rank++
-		t.setRank(t.rank)
-		copy(t.box[1:y+1], t.box[:y])
-		t.box[0] = [10]string{}
-		for i := 0; i <= y; i++ {
-			t.showRow(t.box[i], 2, 0, i)
-		}
-	}
+	t.rank++
+	t.setRank(t.rank)
+	copy(t.box[1:y+1], t.box[:y])
+	t.box[0] = [10]string{}
+	return true
 }
 
 func (t *Tetris) merge(block Block, x, y int) {
+	flash := false
 	for j := 0; j != 4; j++ {
 		for i := 0; i != 4; i++ {
 			if block.On(i, j) == 1 {
 				t.Set(x+i, y+j, t.current.Color)
 			}
 		}
-		t.eliminate(y + j)
+		flash = t.eliminate(y+j) || flash
+	}
+
+	if flash {
+		j := y + 4
+		if j >= 20 {
+			j = 19
+		}
+		for i := 0; i <= j; i++ {
+			t.showRow(t.box[i], 2, 0, i)
+		}
 	}
 }
 
@@ -199,7 +207,9 @@ func (t *Tetris) LeftRotate() {
 	}
 	if t.touch(t.current.Blocks[currentRotate], t.x, t.y) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+		t.predict(false)
 		t.currentRotate = currentRotate
+		t.predict(true)
 		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
@@ -211,7 +221,9 @@ func (t *Tetris) RightRotate() {
 	}
 	if t.touch(t.current.Blocks[currentRotate], t.x, t.y) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+		t.predict(false)
 		t.currentRotate = currentRotate
+		t.predict(true)
 		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
@@ -219,7 +231,9 @@ func (t *Tetris) RightRotate() {
 func (t *Tetris) LeftMove() {
 	if t.touch(t.current.Blocks[t.currentRotate], t.x-1, t.y) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+		t.predict(false)
 		t.x--
+		t.predict(true)
 		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
@@ -227,32 +241,53 @@ func (t *Tetris) LeftMove() {
 func (t *Tetris) RightMove() {
 	if t.touch(t.current.Blocks[t.currentRotate], t.x+1, t.y) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+		t.predict(false)
 		t.x++
+		t.predict(true)
 		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
 
 func (t *Tetris) Drop() {
 	i := 1
-	for i != 0 {
-		i = t.down()
+	for t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+i) == 0 {
+		i++
 	}
+	i -= 1
+
+	t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+	t.y += i
+	t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
+	t.merge(t.current.Blocks[t.currentRotate], t.x, t.y)
+	t.next()
 }
 
 func (t *Tetris) Down() {
-	t.down()
-}
-
-func (t *Tetris) down() int {
 	if t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+1) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.y++
 		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
-		return 1
+		return
 	}
+	t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	t.merge(t.current.Blocks[t.currentRotate], t.x, t.y)
 	t.next()
-	return 0
+}
+
+func (t *Tetris) predict(show bool) {
+	i := 1
+	for t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+i) == 0 {
+		i++
+	}
+	i -= 1
+
+	if show {
+		if i != 0 {
+			t.showBlock(t.current.Blocks[t.currentRotate], t.current.Predict, 2, t.x, t.y+i)
+		}
+	} else {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y+i)
+	}
 }
 
 func (t *Tetris) Run() (err error) {

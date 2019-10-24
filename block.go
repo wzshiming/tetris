@@ -18,10 +18,15 @@ func (b Block) On(x, y int) int {
 }
 
 type Blocks struct {
-	Blocks []Block
-	Color  string
+	Blocks  []Block
+	Color   string
+	Predict string
 }
 
+var (
+	blockRune   = "  "
+	predictRune = "<>"
+)
 var BlocksPool = [...]Blocks{
 	{
 		Blocks: []Block{
@@ -49,7 +54,8 @@ var BlocksPool = [...]Blocks{
 			// 0 1 0 0
 			0b_0100_0100_0100_0100,
 		},
-		Color: ctc.BackgroundBright.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundBright.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundBright.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -78,7 +84,8 @@ var BlocksPool = [...]Blocks{
 			// 1 0 0 0
 			0b_0000_0100_1100_1000,
 		},
-		Color: ctc.BackgroundRed.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundRed.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundRed.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -87,7 +94,7 @@ var BlocksPool = [...]Blocks{
 			// 0 1 1 0
 			// 1 1 0 0
 			// 0 0 0 0
-			0b_0000_1100_0110_0000,
+			0b_0000_0110_1100_0000,
 
 			// 0 0 0 0
 			// 0 1 0 0
@@ -107,7 +114,8 @@ var BlocksPool = [...]Blocks{
 			// 0 1 0 0
 			0b_0000_1000_1100_0100,
 		},
-		Color: ctc.BackgroundGreen.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundGreen.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundGreen.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -136,7 +144,8 @@ var BlocksPool = [...]Blocks{
 			// 1 1 0 0
 			0b_0000_0100_0100_1100,
 		},
-		Color: ctc.BackgroundBlue.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundBlue.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundBlue.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -165,7 +174,8 @@ var BlocksPool = [...]Blocks{
 			// 0 1 0 0
 			0b_0000_1100_0100_0100,
 		},
-		Color: ctc.BackgroundCyan.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundCyan.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundCyan.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -194,7 +204,8 @@ var BlocksPool = [...]Blocks{
 			// 0 1 0 0
 			0b_0000_0100_1100_0100,
 		},
-		Color: ctc.BackgroundMagenta.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundMagenta.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundMagenta.String() + predictRune + ctc.Reset.String(),
 	},
 
 	{
@@ -205,6 +216,7 @@ var BlocksPool = [...]Blocks{
 			// 0 0 0 0
 			0b_0000_0110_0110_0000,
 		},
-		Color: ctc.BackgroundYellow.String() + "  " + ctc.Reset.String(),
+		Color:   ctc.BackgroundYellow.String() + blockRune + ctc.Reset.String(),
+		Predict: ctc.ForegroundYellow.String() + predictRune + ctc.Reset.String(),
 	},
 }
