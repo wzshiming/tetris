@@ -15,12 +15,9 @@ type Tetris struct {
 	draw          *Draw
 	box           [20][10]string
 	x, y          int
-	waitingRotate uint
-	waiting       []Block
-	waitingColor  string
-	currentRotate uint
-	current       []Block
-	currentColor  string
+	waiting       Blocks
+	currentRotate int8
+	current       Blocks
 	emptyColor    string
 	rand          *rand.Rand
 	rank          uint64
@@ -50,14 +47,15 @@ func (t *Tetris) initBox() {
 	t.offX = 2
 	t.offY = 3
 	helpX := 14
-	helpY := 16
+	helpY := 15
 	t.draw.Dot("  H E L P", 2, helpX, helpY)
-	t.draw.Dot("Q:     Quit", 2, helpX, helpY+1)
-	t.draw.Dot("W:     Rotate", 2, helpX, helpY+2)
-	t.draw.Dot("A:     Left", 2, helpX, helpY+3)
-	t.draw.Dot("D:     Right", 2, helpX, helpY+4)
-	t.draw.Dot("S:     Down", 2, helpX, helpY+5)
-	t.draw.Dot("Space: Drop", 2, helpX, helpY+6)
+	t.draw.Dot("L:     Quit", 2, helpX, helpY+1)
+	t.draw.Dot("Q:     Left rotate", 2, helpX, helpY+2)
+	t.draw.Dot("E:     Right rotate", 2, helpX, helpY+3)
+	t.draw.Dot("A:     Left move", 2, helpX, helpY+4)
+	t.draw.Dot("D:     Right move", 2, helpX, helpY+5)
+	t.draw.Dot("S:     Down", 2, helpX, helpY+6)
+	t.draw.Dot("W:     Drop", 2, helpX, helpY+7)
 	t.draw.Box(wallStr, 2, t.offX+13, t.offY, 4, 4)
 	t.draw.Box(wallStr, 2, t.offX, t.offY, 10, 20)
 }
@@ -94,8 +92,6 @@ func (t *Tetris) setTime() {
 func (t *Tetris) init() {
 	t.emptyColor = "  "
 	t.waiting = BlocksPool[t.rand.Int()%len(BlocksPool)]
-	t.waitingColor = Actives[t.rand.Int()%len(Actives)]
-	t.waitingRotate = uint(t.rand.Int() % len(t.waiting))
 }
 
 func (t *Tetris) next() {
@@ -103,14 +99,11 @@ func (t *Tetris) next() {
 	t.x = 3
 
 	t.current = t.waiting
-	t.currentColor = t.waitingColor
-	t.currentRotate = t.waitingRotate
+	t.currentRotate = 0
 
-	t.showBlock(t.waiting[t.waitingRotate], t.emptyColor, 2, int(t.offX+11), int(t.y+4))
+	t.showBlock(t.waiting.Blocks[0], t.emptyColor, 2, int(t.offX+11), int(t.y+4))
 	t.waiting = BlocksPool[t.rand.Int()%len(BlocksPool)]
-	t.waitingColor = Actives[t.rand.Int()%len(Actives)]
-	t.waitingRotate = uint(t.rand.Int() % len(t.waiting))
-	t.showBlock(t.waiting[t.waitingRotate], t.waitingColor, 2, int(t.offX+11), int(t.y+4))
+	t.showBlock(t.waiting.Blocks[0], t.waiting.Color, 2, int(t.offX+11), int(t.y+4))
 }
 
 func (t *Tetris) Get(x, y int) string {
@@ -121,9 +114,9 @@ func (t *Tetris) Get(x, y int) string {
 	ny := y - t.y
 
 	if nx >= 0 && nx < 4 && ny >= 0 && ny < 4 {
-		block := t.current[t.currentRotate]
+		block := t.current.Blocks[t.currentRotate]
 		if block.On(nx, ny) == 1 {
-			return t.currentColor
+			return t.current.Color
 		}
 	}
 	b := t.box[y][x]
@@ -192,38 +185,50 @@ func (t *Tetris) merge(block Block, x, y int) {
 	for j := 0; j != 4; j++ {
 		for i := 0; i != 4; i++ {
 			if block.On(i, j) == 1 {
-				t.Set(x+i, y+j, t.currentColor)
+				t.Set(x+i, y+j, t.current.Color)
 			}
 		}
 		t.eliminate(y + j)
 	}
 }
 
-func (t *Tetris) Rotate() {
+func (t *Tetris) LeftRotate() {
+	currentRotate := t.currentRotate - 1
+	if currentRotate < 0 {
+		currentRotate = int8(len(t.current.Blocks) - 1)
+	}
+	if t.touch(t.current.Blocks[currentRotate], t.x, t.y) == 0 {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+		t.currentRotate = currentRotate
+		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
+	}
+}
+
+func (t *Tetris) RightRotate() {
 	currentRotate := t.currentRotate + 1
-	if currentRotate >= uint(len(t.current)) {
+	if currentRotate >= int8(len(t.current.Blocks)) {
 		currentRotate = 0
 	}
-	if t.touch(t.current[currentRotate], t.x, t.y) == 0 {
-		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+	if t.touch(t.current.Blocks[currentRotate], t.x, t.y) == 0 {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.currentRotate = currentRotate
-		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
+		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
 
-func (t *Tetris) Left() {
-	if t.touch(t.current[t.currentRotate], t.x-1, t.y) == 0 {
-		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+func (t *Tetris) LeftMove() {
+	if t.touch(t.current.Blocks[t.currentRotate], t.x-1, t.y) == 0 {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.x--
-		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
+		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
 
-func (t *Tetris) Right() {
-	if t.touch(t.current[t.currentRotate], t.x+1, t.y) == 0 {
-		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+func (t *Tetris) RightMove() {
+	if t.touch(t.current.Blocks[t.currentRotate], t.x+1, t.y) == 0 {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.x++
-		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
+		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 	}
 }
 
@@ -239,13 +244,13 @@ func (t *Tetris) Down() {
 }
 
 func (t *Tetris) down() int {
-	if t.touch(t.current[t.currentRotate], t.x, t.y+1) == 0 {
-		t.showBlock(t.current[t.currentRotate], t.emptyColor, 2, t.x, t.y)
+	if t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+1) == 0 {
+		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.y++
-		t.showBlock(t.current[t.currentRotate], t.currentColor, 2, t.x, t.y)
+		t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
 		return 1
 	}
-	t.merge(t.current[t.currentRotate], t.x, t.y)
+	t.merge(t.current.Blocks[t.currentRotate], t.x, t.y)
 	t.next()
 	return 0
 }
@@ -256,9 +261,10 @@ func (t *Tetris) Run() (err error) {
 
 	const (
 		None Command = iota
-		Rotate
-		Right
-		Left
+		RightRotate
+		LeftRotate
+		RightMove
+		LeftMove
 		Down
 		Drop
 	)
@@ -281,12 +287,14 @@ func (t *Tetris) Run() (err error) {
 				return
 			}
 			switch c {
-			case Rotate:
-				t.Rotate()
-			case Right:
-				t.Right()
-			case Left:
-				t.Left()
+			case RightRotate:
+				t.RightRotate()
+			case LeftRotate:
+				t.LeftRotate()
+			case RightMove:
+				t.RightMove()
+			case LeftMove:
+				t.LeftMove()
 			case Drop:
 				t.Drop()
 			case Down:
@@ -309,17 +317,19 @@ loop:
 		c := None
 
 		switch b {
-		case 'w', 'W':
-			c = Rotate
+		case 'e', 'E':
+			c = RightRotate
+		case 'q', 'Q':
+			c = LeftRotate
 		case 's', 'S':
 			c = Down
 		case 'a', 'A':
-			c = Left
+			c = LeftMove
 		case 'd', 'D':
-			c = Right
-		case ' ':
+			c = RightMove
+		case 'w', 'W':
 			c = Drop
-		case 'q', 'Q':
+		case 'l', 'L':
 			break loop
 		default:
 			continue
