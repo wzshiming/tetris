@@ -290,6 +290,10 @@ func (t *Tetris) predict(show bool) {
 	}
 }
 
+func (t *Tetris) IsGameOver() bool {
+	return t.over == 1
+}
+
 func (t *Tetris) Run() (err error) {
 
 	type Command uint
@@ -304,75 +308,78 @@ func (t *Tetris) Run() (err error) {
 		Drop
 	)
 
-	tick := time.NewTicker(time.Second)
 	cch := make(chan Command, 0)
 
 	go func() {
+		tick := time.NewTicker(time.Second)
 		for range tick.C {
-			if t.over == 1 {
+			if t.IsGameOver() {
+				close(cch)
 				break
 			}
 			cch <- Down
 		}
+		tick.Stop()
 	}()
 
 	go func() {
-		for c := range cch {
-			if t.over == 1 {
+		for {
+			b, _, err := getch.Getch()
+			if err != nil {
+				close(cch)
+				fmt.Println(err)
 				return
 			}
-			switch c {
-			case RightRotate:
-				t.RightRotate()
-			case LeftRotate:
-				t.LeftRotate()
-			case RightMove:
-				t.RightMove()
-			case LeftMove:
-				t.LeftMove()
-			case Drop:
-				t.Drop()
-			case Down:
-				t.setTime()
-				t.Down()
+			if t.IsGameOver() {
+				close(cch)
+				return
 			}
+			c := None
+
+			switch b {
+			case 'e', 'E':
+				c = RightRotate
+			case 'q', 'Q':
+				c = LeftRotate
+			case 's', 'S':
+				c = Down
+			case 'a', 'A':
+				c = LeftMove
+			case 'd', 'D':
+				c = RightMove
+			case 'w', 'W':
+				c = Drop
+			case 'l', 'L':
+				close(cch)
+				return
+			default:
+				continue
+			}
+			cch <- c
 		}
 	}()
 
-loop:
-	for {
-		b, _, err0 := getch.Getch()
-		if err != nil {
-			err = err0
+	for c := range cch {
+		if t.IsGameOver() {
 			break
 		}
-		if t.over == 1 {
-			break
+		switch c {
+		case RightRotate:
+			t.RightRotate()
+		case LeftRotate:
+			t.LeftRotate()
+		case RightMove:
+			t.RightMove()
+		case LeftMove:
+			t.LeftMove()
+		case Drop:
+			t.Drop()
+		case Down:
+			t.setTime()
+			t.Down()
 		}
-		c := None
-
-		switch b {
-		case 'e', 'E':
-			c = RightRotate
-		case 'q', 'Q':
-			c = LeftRotate
-		case 's', 'S':
-			c = Down
-		case 'a', 'A':
-			c = LeftMove
-		case 'd', 'D':
-			c = RightMove
-		case 'w', 'W':
-			c = Drop
-		case 'l', 'L':
-			break loop
-		default:
-			continue
-		}
-		cch <- c
 	}
-	tick.Stop()
+
 	t.end()
-	close(cch)
 	return err
 }
