@@ -1,10 +1,10 @@
-github.com/wzshiming/ctc v1.2.0 h1:TrXZ+Uzj1y+GarLb0Ux08WTXX2trk5nnHfduNp2mSfM=
-github.com/wzshiming/ctc v1.2.0/go.mod h1:20Wvt1IsAUnS05mzVntGRQTOGqu0F6mURodp5zH6a4c=
+github.com/wzshiming/ctc v1.2.2 h1:rqPOfE1UfDMAYKH/rguz7deb4T2pDAIs8AvLxlo9FMM=
+github.com/wzshiming/ctc v1.2.2/go.mod h1:UcD2Z5ik60OB++kwSre6MRBbQEAxjLXdUEZDI0pwX94=
 github.com/wzshiming/cursor v0.0.0-20190530095117-a6571ae04751 h1:sCmRADINCRiKdTjEgMlo0KiL/Htc0MFfQgIwVSwoOto=
 github.com/wzshiming/cursor v0.0.0-20190530095117-a6571ae04751/go.mod h1:cqGIvb+4GlECk0FayOG3E/O3ySY/1MblNL5Hw2YK7i4=
 github.com/wzshiming/getch v0.0.0-20190528100842-ef97cd1d239e h1:aSNWRGlVkkFPhoJTQ4BX2uu/RXPfy0suMvGnJ/f0niw=
 github.com/wzshiming/getch v0.0.0-20190528100842-ef97cd1d239e/go.mod h1:TYK5eJtSD5cVebob9fE7D3jR1fbRU1EwkoPzbLWsOAk=
 github.com/wzshiming/winseq v0.0.0-20181031094240-8a45cfbfe1c2 h1:JHnVrrYXAHarB01FiFduTV4t6QlQZyd5RcOjB5FZswU=
 github.com/wzshiming/winseq v0.0.0-20181031094240-8a45cfbfe1c2/go.mod h1:VTAq37rkGeV+WOybvZwjXiJOicICdpLCN8ifpISjK20=
-golang.org/x/sys v0.0.0-20190606203320-7fc4e5ec1444 h1:/d2cWp6PSamH4jDPFLyO150psQdqvtoNX8Zjg3AQ31g=
-golang.org/x/sys v0.0.0-20190606203320-7fc4e5ec1444/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20191026070338-33540a1f6037 h1:YyJpGZS1sBuBCzLAR1VEpK193GlqGZbnPFnPV/5Rsb4=
+golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
