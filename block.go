@@ -24,7 +24,7 @@ type Blocks struct {
 }
 
 var (
-	blockRune   = "  "
+	blockRune   = "::"
 	predictRune = "<>"
 )
 var BlocksPool = [...]Blocks{
