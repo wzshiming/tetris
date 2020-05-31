@@ -11,7 +11,10 @@ import (
 
 type Tetris struct {
 	offX, offY    int
+	interval      time.Duration
 	start         time.Time
+	pauseDuration time.Duration
+	pauseTime     time.Time
 	draw          *Draw
 	box           [20][10]string
 	x, y          int
@@ -21,14 +24,15 @@ type Tetris struct {
 	emptyColor    string
 	rand          *rand.Rand
 	rank          uint64
-	over          uint
+	flag          flag
 }
 
 func NewTetris() *Tetris {
 	t := &Tetris{
-		start: time.Now(),
-		draw:  NewDraw(os.Stdout),
-		rand:  rand.New(rand.NewSource(time.Now().Unix())),
+		interval: time.Second,
+		start:    time.Now(),
+		draw:     NewDraw(os.Stdout),
+		rand:     rand.New(rand.NewSource(time.Now().Unix())),
 	}
 	t.init()
 	t.initBox()
@@ -47,7 +51,7 @@ func (t *Tetris) initBox() {
 	t.offX = 2
 	t.offY = 3
 	helpX := 14
-	helpY := 15
+	helpY := 14
 	t.draw.Dot("  H E L P", 2, helpX, helpY)
 	t.draw.Dot("L:     Quit", 2, helpX, helpY+1)
 	t.draw.Dot("Q:     Left rotate", 2, helpX, helpY+2)
@@ -56,6 +60,7 @@ func (t *Tetris) initBox() {
 	t.draw.Dot("D:     Right move", 2, helpX, helpY+5)
 	t.draw.Dot("S:     Down move", 2, helpX, helpY+6)
 	t.draw.Dot("W:     Drop", 2, helpX, helpY+7)
+	t.draw.Dot("Space: Pause", 2, helpX, helpY+8)
 	t.draw.Box(wallStr, 2, t.offX+13, t.offY, 4, 4)
 	t.draw.Box(wallStr, 2, t.offX, t.offY, 10, 20)
 }
@@ -82,11 +87,11 @@ func (t *Tetris) showRow(row [10]string, cw int, x, y int) {
 
 func (t *Tetris) setRank(i uint64) {
 	t.rank = i
-	t.draw.Dot(fmt.Sprintf("Rank:  %d", i), 2, 14, 11)
+	t.draw.Dot(fmt.Sprintf("Rank:  %d", i), 2, 14, 10)
 }
 
 func (t *Tetris) setTime() {
-	t.draw.Dot(fmt.Sprintf("Time:  %s", time.Now().Sub(t.start)/time.Second*time.Second), 2, 14, 12)
+	t.draw.Dot(fmt.Sprintf("Time:  %v\t", (time.Now().Sub(t.start)-t.pauseDuration)/time.Second*time.Second), 2, 14, 11)
 }
 
 func (t *Tetris) init() {
@@ -130,7 +135,7 @@ func (t *Tetris) Get(x, y int) string {
 
 func (t *Tetris) Set(x, y int, currentColor string) {
 	if x > 10 || y > 20 || x < 0 || y < 0 {
-		t.over = 1
+		t.flag.On(overFlag)
 		return
 	}
 	t.box[y][x] = currentColor
@@ -274,6 +279,20 @@ func (t *Tetris) DownMove() {
 	t.next()
 }
 
+func (t *Tetris) Pause() {
+	t.flag.On(pauseFlag)
+	t.pauseTime = time.Now()
+}
+
+func (t *Tetris) Continue() {
+	t.flag.Off(pauseFlag)
+	t.pauseDuration += time.Now().Sub(t.pauseTime)
+}
+
+func (t *Tetris) IsPause() bool {
+	return t.flag.Has(pauseFlag)
+}
+
 func (t *Tetris) predict(show bool) {
 	i := 1
 	for t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+i) == 0 {
@@ -291,36 +310,11 @@ func (t *Tetris) predict(show bool) {
 }
 
 func (t *Tetris) IsGameOver() bool {
-	return t.over == 1
+	return t.flag.Has(overFlag)
 }
 
-func (t *Tetris) Run() (err error) {
-
-	type Command uint
-
-	const (
-		None Command = iota
-		RightRotate
-		LeftRotate
-		RightMove
-		LeftMove
-		DownMove
-		Drop
-	)
-
-	cch := make(chan Command, 0)
-
-	go func() {
-		tick := time.NewTicker(time.Second)
-		for range tick.C {
-			if t.IsGameOver() {
-				close(cch)
-				break
-			}
-			cch <- DownMove
-		}
-		tick.Stop()
-	}()
+func (t *Tetris) inputCommand() <-chan Command {
+	cch := make(chan Command)
 
 	go func() {
 		for {
@@ -334,9 +328,11 @@ func (t *Tetris) Run() (err error) {
 				close(cch)
 				return
 			}
-			c := None
+			var c Command
 
 			switch b {
+			case ' ':
+				c = Pause
 			case 'e', 'E':
 				c = RightRotate
 			case 'q', 'Q':
@@ -358,25 +354,55 @@ func (t *Tetris) Run() (err error) {
 			cch <- c
 		}
 	}()
+	return cch
+}
 
-	for c := range cch {
-		if t.IsGameOver() {
-			break
-		}
-		switch c {
-		case RightRotate:
-			t.RightRotate()
-		case LeftRotate:
-			t.LeftRotate()
-		case RightMove:
-			t.RightMove()
-		case LeftMove:
-			t.LeftMove()
-		case Drop:
-			t.Drop()
-		case DownMove:
+func (t *Tetris) Run() (err error) {
+	cch := t.inputCommand()
+
+	ticker := time.NewTimer(t.interval)
+loop:
+	for {
+		select {
+		case <-ticker.C:
+			if t.IsGameOver() {
+				break loop
+			}
+			if t.IsPause() {
+				continue
+			}
 			t.setTime()
 			t.DownMove()
+			ticker.Reset(t.interval)
+		case c, ok := <-cch:
+			if !ok || t.IsGameOver() {
+				break loop
+			}
+			if t.IsPause() {
+				t.Continue()
+				ticker.Reset(t.interval)
+				if c == Pause {
+					continue
+				}
+			}
+			switch c {
+			case Pause:
+				t.Pause()
+			case RightRotate:
+				t.RightRotate()
+			case LeftRotate:
+				t.LeftRotate()
+			case RightMove:
+				t.RightMove()
+			case LeftMove:
+				t.LeftMove()
+			case DownMove:
+				t.setTime()
+				t.DownMove()
+				ticker.Reset(t.interval)
+			case Drop:
+				t.Drop()
+			}
 		}
 	}
 
