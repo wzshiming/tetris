@@ -54,7 +54,7 @@ func (t *Tetris) initBox() {
 	t.draw.Dot("E:     Right rotate", 2, helpX, helpY+3)
 	t.draw.Dot("A:     Left move", 2, helpX, helpY+4)
 	t.draw.Dot("D:     Right move", 2, helpX, helpY+5)
-	t.draw.Dot("S:     Down", 2, helpX, helpY+6)
+	t.draw.Dot("S:     Down move", 2, helpX, helpY+6)
 	t.draw.Dot("W:     Drop", 2, helpX, helpY+7)
 	t.draw.Box(wallStr, 2, t.offX+13, t.offY, 4, 4)
 	t.draw.Box(wallStr, 2, t.offX, t.offY, 10, 20)
@@ -262,7 +262,7 @@ func (t *Tetris) Drop() {
 	t.next()
 }
 
-func (t *Tetris) Down() {
+func (t *Tetris) DownMove() {
 	if t.touch(t.current.Blocks[t.currentRotate], t.x, t.y+1) == 0 {
 		t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 		t.y++
@@ -304,7 +304,7 @@ func (t *Tetris) Run() (err error) {
 		LeftRotate
 		RightMove
 		LeftMove
-		Down
+		DownMove
 		Drop
 	)
 
@@ -317,7 +317,7 @@ func (t *Tetris) Run() (err error) {
 				close(cch)
 				break
 			}
-			cch <- Down
+			cch <- DownMove
 		}
 		tick.Stop()
 	}()
@@ -342,7 +342,7 @@ func (t *Tetris) Run() (err error) {
 			case 'q', 'Q':
 				c = LeftRotate
 			case 's', 'S':
-				c = Down
+				c = DownMove
 			case 'a', 'A':
 				c = LeftMove
 			case 'd', 'D':
@@ -374,9 +374,9 @@ func (t *Tetris) Run() (err error) {
 			t.LeftMove()
 		case Drop:
 			t.Drop()
-		case Down:
+		case DownMove:
 			t.setTime()
-			t.Down()
+			t.DownMove()
 		}
 	}
 
