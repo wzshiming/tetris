@@ -3,7 +3,7 @@ package tetris
 type Command uint
 
 const (
-	_ Command = iota
+	None Command = iota
 	Pause
 	RightRotate
 	LeftRotate

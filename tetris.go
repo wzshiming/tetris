@@ -1,12 +1,11 @@
 package tetris
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
 	"time"
-
-	"github.com/wzshiming/getch"
 )
 
 type Tetris struct {
@@ -86,7 +85,6 @@ func (t *Tetris) showRow(row [10]string, cw int, x, y int) {
 }
 
 func (t *Tetris) setRank(i uint64) {
-	t.rank = i
 	t.draw.Dot(fmt.Sprintf("Rank:  %d", i), 2, 14, 10)
 }
 
@@ -313,57 +311,14 @@ func (t *Tetris) IsGameOver() bool {
 	return t.flag.Has(overFlag)
 }
 
-func (t *Tetris) inputCommand() <-chan Command {
-	cch := make(chan Command)
-
-	go func() {
-		for {
-			b, _, err := getch.Getch()
-			if err != nil {
-				close(cch)
-				fmt.Println(err)
-				return
-			}
-			if t.IsGameOver() {
-				close(cch)
-				return
-			}
-			var c Command
-
-			switch b {
-			case ' ':
-				c = Pause
-			case 'e', 'E':
-				c = RightRotate
-			case 'q', 'Q':
-				c = LeftRotate
-			case 's', 'S':
-				c = DownMove
-			case 'a', 'A':
-				c = LeftMove
-			case 'd', 'D':
-				c = RightMove
-			case 'w', 'W':
-				c = Drop
-			case 'l', 'L':
-				close(cch)
-				return
-			default:
-				continue
-			}
-			cch <- c
-		}
-	}()
-	return cch
-}
-
-func (t *Tetris) Run() (err error) {
-	cch := t.inputCommand()
-
+func (t *Tetris) Run(ctx context.Context, cch <-chan Command) (err error) {
 	ticker := time.NewTimer(t.interval)
 loop:
 	for {
 		select {
+		case <-ctx.Done():
+			t.flag.On(overFlag)
+			break loop
 		case <-ticker.C:
 			if t.IsGameOver() {
 				break loop
@@ -375,6 +330,9 @@ loop:
 			t.DownMove()
 			ticker.Reset(t.interval)
 		case c, ok := <-cch:
+			if c == None {
+				continue
+			}
 			if !ok || t.IsGameOver() {
 				break loop
 			}
