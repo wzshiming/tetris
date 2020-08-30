@@ -1,6 +1,6 @@
 module github.com/wzshiming/tetris
 
-go 1.14
+go 1.15
 
 require (
 	github.com/wzshiming/ctc v1.2.3
