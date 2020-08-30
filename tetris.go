@@ -133,7 +133,6 @@ func (t *Tetris) Get(x, y int) string {
 
 func (t *Tetris) Set(x, y int, currentColor string) {
 	if x > 10 || y > 20 || x < 0 || y < 0 {
-		t.flag.On(overFlag)
 		return
 	}
 	t.box[y][x] = currentColor
@@ -178,6 +177,21 @@ func (t *Tetris) eliminate(y int) bool {
 	t.setRank(t.rank)
 	copy(t.box[1:y+1], t.box[:y])
 	t.box[0] = [10]string{}
+	return true
+}
+
+func (t *Tetris) check(block Block, x, y int) bool {
+	for j := 0; j != 4; j++ {
+		for i := 0; i != 4; i++ {
+			if block.On(i, j) == 1 {
+				x := x + i
+				y := y + j
+				if x > 10 || y > 20 || x < 0 || y < 0 {
+					return false
+				}
+			}
+		}
+	}
 	return true
 }
 
@@ -261,6 +275,10 @@ func (t *Tetris) Drop() {
 	t.showBlock(t.current.Blocks[t.currentRotate], t.emptyColor, 2, t.x, t.y)
 	t.y += i
 	t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
+	if !t.check(t.current.Blocks[t.currentRotate], t.x, t.y) {
+		t.flag.On(overFlag)
+		return
+	}
 	t.merge(t.current.Blocks[t.currentRotate], t.x, t.y)
 	t.next()
 }
@@ -273,6 +291,10 @@ func (t *Tetris) DownMove() {
 		return
 	}
 	t.showBlock(t.current.Blocks[t.currentRotate], t.current.Color, 2, t.x, t.y)
+	if !t.check(t.current.Blocks[t.currentRotate], t.x, t.y) {
+		t.flag.On(overFlag)
+		return
+	}
 	t.merge(t.current.Blocks[t.currentRotate], t.x, t.y)
 	t.next()
 }
@@ -360,6 +382,9 @@ loop:
 				ticker.Reset(t.interval)
 			case Drop:
 				t.Drop()
+			}
+			if t.IsGameOver() {
+				break loop
 			}
 		}
 	}
